@@ -160,8 +160,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 myServer : MyTCPServer
-path = 'C:/Users/Administrator/Documents/Python Project/TelegramBot'
-#path = os.getcwd()
+path = os.getcwd()
 myID : int
 updater : Updater
 channel = {'系統公告': True, '密頻': True, '全頻': True, '輕頻': True, '團頻': True, '盟頻': True, '隊頻': True, '世頻': True, '陣頻': True}
