@@ -1,4 +1,3 @@
-# pip install python-telegram-bot --upgrade
 import asyncio
 import os, logging, socket, time, codecs
 from threading import Thread
