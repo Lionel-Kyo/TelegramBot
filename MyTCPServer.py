@@ -1,3 +1,4 @@
+import time
 import asyncio
 import socket
 from threading import Thread
@@ -21,6 +22,7 @@ class MyTCPServer:
         self.channel = {'系統公告': True, '密頻': True, '全頻': True, '輕頻': True, '團頻': True, '盟頻': True, '隊頻': True, '世頻': True, '陣頻': True}
         self.player_ids = {}
         self.botId = 0
+        self.path = ""
     
     def start(self):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -75,7 +77,7 @@ class MyTCPServer:
                         except: pass
                     else:
                         if (splitedMsg[1] != "密頻"): 
-                            self.checkAndSaveID((int)(splitedMsg[2]), splitedMsg[3])
+                            self.check_and_save_id((int)(splitedMsg[2]), splitedMsg[3])
 
                     splitedMsg.pop(0)
 
@@ -151,3 +153,25 @@ class MyTCPServer:
         try: self.server.close()
         except Exception as e: print("self.self.server.close() " + str(e))
         self.server = None
+
+    def check_and_save_id(self, ID: int, name: str):
+        if name == 'N/A' or name == None or ID == None or ID < 10000: 
+            return
+        if (ID in self.player_ids):
+            return
+        else:
+            self.player_ids[ID] = name
+            saved = False
+            tryTime = 0
+            while not saved:
+                try:
+                    file = open(self.path + '/PlayerID', mode = 'a', encoding = 'utf-8-sig')
+                    file.write('{}|||{}\n'.format(ID ,name))
+                    file.close()
+                    saved = True
+                except Exception as e:
+                    print("Error on check and save ID: " + str(e))
+                    tryTime += 1
+                    time.sleep(0.01)
+                    if tryTime > 20:
+                        break

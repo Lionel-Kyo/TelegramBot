@@ -24,28 +24,6 @@ path: str = os.getcwd()
 application : Application
 say_channel = None
 
-def check_and_save_id(ID: int, name: str):
-    if (name == 'N/A' or name == None or ID == None or ID < 10000): return
-    if (ID in my_server.player_ids):
-         return
-    else:
-        my_server.player_ids[ID] = name
-        saved = False
-        tryTime = 0
-        while not saved:
-            try:
-                file = open(path + '/PlayerID', mode = 'a', encoding = 'utf-8-sig')
-                file.write('{}|||{}\n'.format(ID ,name))
-                file.close()
-                saved = True
-            except Exception as e:
-                print("Error on check and save ID: " + str(e))
-                tryTime += 1
-                time.sleep(0.01)
-                if (tryTime > 20):
-                    break
-
-
 def read_id():
     try:
         file = open(path + '/PlayerID', mode = 'r', encoding = 'utf-8-sig')
@@ -335,6 +313,7 @@ def main():
     global my_server
     my_server = MyTCPServer()
     my_server.send_msg = send_msg
+    my_server.path = path
     # Start Read Token and Admin ID
     try:
         file = open(path + "/BotInfo.txt", mode = "r", encoding = "utf8")
