@@ -365,41 +365,54 @@ async def ShowEmoji(update : Update, context : CallbackContext):
     else: 
         await update.message.reply_text(text="This is a private bot")
 
-async def Answer(update : Update, context : CallbackContext):
+async def Callback_Close(update : Update, context : CallbackContext):
     recvData = update.callback_query.data
-    if recvData.startswith('Close'):
-        closedChannel = recvData.replace('Close', '')
-        channel[closedChannel] = not channel.get(closedChannel)
-        reply = ""
-        for key, value in channel.items():
-            if value: 
-                value = "開"
-            else: 
-                value = "關"
-            reply += "{}: {}\n".format(key, value)
-        await update.callback_query.edit_message_text(text = reply)
-        saveChannel()
-    elif recvData.startswith('Say'):
-        global SayChannel
-        if recvData == "Say密頻":
-            await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
-            SayChannel = "ID密頻"
-        else:
-            await update.callback_query.edit_message_text(text = '請輸入訊息')
-            SayChannel = recvData.replace('Say', '')
-    elif recvData.startswith('Lock'):
-        if recvData == "Lock密頻":
-            await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
-            SayChannel = "LockID密頻"
-        else:
-            SayChannel = recvData
-            await update.callback_query.edit_message_text(text = '已鎖定' + recvData.replace('Lock', ''))
-    elif recvData.startswith('Player'):
-        playerName = recvData.replace('Player', '')
-        myServer.BindPlayer(playerName)
-        await update.callback_query.edit_message_text(text = '已綁定帳號: ' + playerName)
+
+    closedChannel = recvData.replace('Close', '')
+    channel[closedChannel] = not channel.get(closedChannel)
+    reply = ""
+    for key, value in channel.items():
+        if value: 
+            value = "開"
+        else: 
+            value = "關"
+        reply += "{}: {}\n".format(key, value)
+    await update.callback_query.edit_message_text(text = reply)
+    saveChannel()
+
+async def Callback_Say(update : Update, context : CallbackContext):
+    recvData = update.callback_query.data
+
+    global SayChannel
+    if recvData == "Say密頻":
+        await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
+        SayChannel = "ID密頻"
     else:
-        await update.callback_query.edit_message_text(text = recvData)
+        await update.callback_query.edit_message_text(text = '請輸入訊息')
+        SayChannel = recvData.replace('Say', '')
+
+async def Callback_Lock(update : Update, context : CallbackContext):
+    recvData = update.callback_query.data
+
+    global SayChannel
+    if recvData == "Lock密頻":
+        await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
+        SayChannel = "LockID密頻"
+    else:
+        SayChannel = recvData
+        await update.callback_query.edit_message_text(text = '已鎖定' + recvData.replace('Lock', ''))
+
+async def Callback_Player(update : Update, context : CallbackContext):
+    recvData = update.callback_query.data
+
+    playerName = recvData.replace('Player', '')
+    myServer.BindPlayer(playerName)
+    await update.callback_query.edit_message_text(text = '已綁定帳號: ' + playerName)
+
+async def Callback_NotProcessed(update : Update, context : CallbackContext):
+    recvData = update.callback_query.data
+
+    await update.callback_query.edit_message_text(text = recvData)
 
 async def MsgHandle(update : Update, context : CallbackContext):
     if update.message.text.startswith('/'):
@@ -539,7 +552,11 @@ def main():
     application.add_handler(CommandHandler("bindplayer", BindPlayer))
     application.add_handler(CommandHandler("showemoji", ShowEmoji))
 
-    application.add_handler(CallbackQueryHandler(Answer))
+    application.add_handler(CallbackQueryHandler(Callback_Close, pattern="^Close"))
+    application.add_handler(CallbackQueryHandler(Callback_Say, pattern="^Say"))
+    application.add_handler(CallbackQueryHandler(Callback_Lock, pattern="^Lock"))
+    application.add_handler(CallbackQueryHandler(Callback_Player, pattern="^Player"))
+    application.add_handler(CallbackQueryHandler(Callback_NotProcessed))
 
     application.add_handler(MessageHandler(filters.TEXT, MsgHandle))
 
