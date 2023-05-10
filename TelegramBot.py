@@ -1,8 +1,10 @@
+# pip install python-telegram-bot --upgrade
+import asyncio
 import os, logging, socket, time, codecs
 from threading import Thread
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import Application, Updater, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler, ConversationHandler
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram import Update
+from telegram import Update, Bot
 
 class ClientData:
     def __init__(self, client : socket, address):
@@ -16,7 +18,7 @@ class ClientData:
 
 class MyTCPServer:
     def __init__(self):
-        self.IP : str = '127.0.0.1'
+        self.IP : str = "127.0.0.1"
         self.port : int = 49857
         self.server : socket = None
         self.clients : list[ClientData] = []
@@ -30,8 +32,8 @@ class MyTCPServer:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.IP, self.port))
         self.server.listen(10)
-        print('Server start at: {}:{}'.format(self.IP, self.port))
-        print('Waiting for connection...')
+        # print('Server start at: {}:{}'.format(self.IP, self.port))
+        print("Waiting for connection from SWPE...")
         self.AcceptThread = Thread(target = self.AcceptClient)
         self.AcceptThread.start()
         
@@ -41,7 +43,7 @@ class MyTCPServer:
                 client, address = self.server.accept()
             except:
                 return
-            print('Have a connection from: ' + (str)(address))
+            # print('Have a connection from: ' + (str)(address))
             clientData  = ClientData(client, address)
             self.clients.append(clientData)
             newThread = Thread(target = self.ClientHandle, args = (clientData,))
@@ -49,6 +51,7 @@ class MyTCPServer:
     
     def ClientHandle(self, clientData : ClientData):
         playerName = None
+        playerID = None
         while True:
             # Recv Message Format: SWPE|||Channel|||ID|||Name|||Message
             try: recvMsg = clientData.client.recv(8192)
@@ -58,20 +61,21 @@ class MyTCPServer:
                 except: pass
                 self.clients.remove(clientData)
                 print(playerName + ' closed connection.')
-                sendMsg(myID, playerName + " 已離開伺服器")
-                self.AcceptWorldChannel = None
+                asyncio.run(sendMsg(myID, playerName + " 已離開伺服器"))
+                if playerID == self.AcceptWorldChannel:
+                    self.AcceptWorldChannel = None
                 return
-            if(self.AcceptWorldChannel == None):
+            if (self.AcceptWorldChannel == None):
                 self.AcceptWorldChannel = playerName
             decodedMsg : str = recvMsg.decode(encoding = 'UTF-8')
             msgs = decodedMsg.split('\r\n')
             for msg in msgs:
                 if (msg == None or msg == ''): continue
                 splitedMsg = msg.split('|||')
-                print('Server Received Message: ' + msg)
+                #print('Server Received Message: ' + msg)
 
-                if(splitedMsg[0] == 'SWPE'):
-                    if(splitedMsg[3] == 'N/A'):
+                if splitedMsg[0] == 'SWPE':
+                    if splitedMsg[3] == 'N/A':
                         try: splitedMsg[3] = playerIDList.get((int)(splitedMsg[2]))
                         except: pass
                     else:
@@ -80,10 +84,10 @@ class MyTCPServer:
 
                     splitedMsg.pop(0)
 
-                    if(splitedMsg[0] == "系統公告"):
+                    if splitedMsg[0] == "系統公告":
                         splitedMsg.pop(1)
                         splitedMsg.pop(1)
-                    elif(splitedMsg[0] == "密頻"):
+                    elif splitedMsg[0] == "密頻":
                         if (splitedMsg[1] == (str)(clientData.playerID)):
                             splitedMsg[2] = "我對 " + splitedMsg[2] + " 說: "
                         elif (splitedMsg[1] == '0'):
@@ -101,21 +105,21 @@ class MyTCPServer:
                                 sssss = sssss.replace(key, value)
                             reply += sssss + " "
 
-                    if(channel.get(splitedMsg[0])):
-                        if(splitedMsg[0] == "世頻" or splitedMsg[0] == "陣頻" or splitedMsg[0] == "系統公告"):
-                            if(self.AcceptWorldChannel == playerName):
-                                sendMsg(myID, playerName + " ~ " + reply)
+                    if channel.get(splitedMsg[0]):
+                        if splitedMsg[0] == "世頻" or splitedMsg[0] == "陣頻" or splitedMsg[0] == "系統公告":
+                            if self.AcceptWorldChannel == playerName:
+                                asyncio.run(sendMsg(myID, playerName + " ~ " + reply))
                         else:
-                            sendMsg(myID, playerName + " ~ " + reply)
+                            asyncio.run(sendMsg(myID, playerName + " ~ " + reply))
 
-                elif(splitedMsg[0] == "SWPENAME"):
+                elif splitedMsg[0] == "SWPENAME":
                     try:
                         playerName = splitedMsg[1]
                         playerID = (int)(splitedMsg[2])
                         clientData.playerName = playerName
                         clientData.playerID = playerID
                         print('Connected player: {} ({})'.format(playerName, playerID))
-                        sendMsg(myID, "{} ({}) 已連接至伺服器".format(playerName, playerID))
+                        asyncio.run(sendMsg(myID, "{} ({}) 已連接至伺服器".format(playerName, playerID)))
                     except:
                         print('Failed to Initialize Name')
 
@@ -126,7 +130,7 @@ class MyTCPServer:
                     self.BindedPlayer = data.playerName
                     break
 
-    def Send(self, msg : str):
+    async def Send(self, msg : str):
         # Send Message Format: SWPE|||Channel|||ID|||Message
         foundTarget = False
         for data in self.clients:
@@ -136,11 +140,11 @@ class MyTCPServer:
                     data.client.send(msg.encode(encoding = 'UTF-8'))
                 except:
                     print("Error on Send")
-                    sendMsg(myID, '發送對話失敗')
+                    await sendMsg(myID, '發送對話失敗')
                 break
-        if(not foundTarget):
+        if not foundTarget:
             print('No Player are binded')
-            sendMsg(myID, '沒有綁定帳號')
+            await sendMsg(myID, '沒有綁定帳號')
 
     def Close(self):
         for client in self.clients:
@@ -159,15 +163,16 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-myServer : MyTCPServer
+myServer: MyTCPServer = None
+#path = 'C:/Users/Administrator/Documents/Python Project/TelegramBot'
 path = os.getcwd()
-myID : int
-updater : Updater
+myID: int = 0
+application : Application
 channel = {'系統公告': True, '密頻': True, '全頻': True, '輕頻': True, '團頻': True, '盟頻': True, '隊頻': True, '世頻': True, '陣頻': True}
 playerIDList = dict()
 SayChannel = None
 
-def checkAndSaveID(ID : int, name : str):
+def checkAndSaveID(ID: int, name: str):
     if (name == 'N/A' or name == None or ID == None or ID < 10000): return
     if (ID in playerIDList):
          return
@@ -215,7 +220,8 @@ def readChannel():
         splited = line.split('|')
         count = 0
         for key, value in channel.items():
-            if(splited[count] == '0'): channel[key] = False
+            if splited[count] == '0': 
+                channel[key] = False
             count += 1
         file.close()
     except Exception as e:
@@ -228,35 +234,48 @@ def saveChannel():
     count = 0
     for key, value in channel.items():
         writeData = ''
-        if(value): writeData = '1'
+        if value: 
+            writeData = '1'
         else: writeData = '0'
-        if(count != 8): writeData = writeData + '|'
+        if count != 8: 
+            writeData = writeData + '|'
         file.write(writeData)
         count += 1
     file.close()
     
 
 def printRecvMsg(update : Update):
+    if update is None or update.message is None:
+        return
+    update.message.from_user
     user = update.message.from_user
-    fullName = user.first_name + user.last_name
+    if user == None:
+        return
+    firstName = ""
+    lastName = ""
+    if user.first_name != None:
+        firstName = user.first_name
+    if user.last_name != None:
+        lastName = user.last_name
+    fullName = firstName + lastName
     print('Message received from {} / {}(UserID: {} ChatID: {}): {}'.format(fullName, user.username, user.id, update.message.chat_id, update.message.text))
 
-def Start(update : Update, context : CallbackContext):
+async def Start(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID): 
+    if (update.message.from_user.id == myID): 
         readID()
         print("Reloaded playerIDList")
-    update.message.reply_text('Hi there is Saki Saki BOT!!!')
+    await update.message.reply_text('Hi there is Saki Saki BOT!!!')
 
-def Say(update : Update, context : CallbackContext):
+async def Say(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID):
+    if (update.message.from_user.id == myID):
 
         splitedMsg = update.message.text.split(' ')
-        if(len(splitedMsg) != 3 and len(splitedMsg) != 4):
+        if len(splitedMsg) != 3 and len(splitedMsg) != 4:
             channelList1 = ['密頻', '全頻', '輕頻', '團頻']
             channelList2 = ['盟頻', '隊頻', '世頻', '陣頻']
-            update.message.reply_text(text = '請選擇想開關的頻道',
+            await update.message.reply_text(text = '請選擇想開關的頻道',
                 reply_markup = InlineKeyboardMarkup
                 (
                     [
@@ -266,29 +285,31 @@ def Say(update : Update, context : CallbackContext):
                 )
             )
             return
-        if(len(splitedMsg[1]) == 1):
+        if len(splitedMsg[1]) == 1:
             splitedMsg[1] = splitedMsg[1] + '頻'
-        if(splitedMsg[1] == '密頻'):
-            if(splitedMsg[2].isdigit()):
-                myServer.Send("SWPE|||密頻|||{}|||{}".format(splitedMsg[2], splitedMsg[3]))
+        if splitedMsg[1] == '密頻':
+            if splitedMsg[2].isdigit():
+                await myServer.Send("SWPE|||密頻|||{}|||{}".format(splitedMsg[2], splitedMsg[3]))
             else:
                 foundID = False
                 for key, value in playerIDList.items():
-                    if(value == splitedMsg[2]):
+                    if value == splitedMsg[2]:
                         foundID = True
-                        myServer.Send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[3]))
+                        await myServer.Send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[3]))
                         break
-                if(not foundID):
-                    update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
+                if not foundID:
+                    await update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
         else:
-            myServer.Send("SWPE|||{}|||NULL|||{}".format(splitedMsg[1], splitedMsg[2]))
+            await myServer.Send("SWPE|||{}|||NULL|||{}".format(splitedMsg[1], splitedMsg[2]))
+    else: 
+        await update.message.reply_text(text="This is a private bot")
 
-def Close(update : Update, context : CallbackContext):
+async def Close(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID):
+    if (update.message.from_user.id == myID):
         channelList1 = ['系統公告', '密頻', '全頻', '輕頻', '團頻']
         channelList2 = ['盟頻', '隊頻', '世頻', '陣頻']
-        update.message.reply_text(text = '請選擇想開關的頻道',
+        await update.message.reply_text(text = '請選擇想開關的頻道',
             reply_markup = InlineKeyboardMarkup
             (
                 [
@@ -297,13 +318,15 @@ def Close(update : Update, context : CallbackContext):
                 ]
             )
         )
+    else: 
+        await update.message.reply_text(text="This is a private bot")
 
-def LockChannel(update : Update, context : CallbackContext):
+async def LockChannel(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID):
+    if (update.message.from_user.id == myID):
         channelList1 = ['密頻', '全頻', '輕頻', '團頻']
         channelList2 = ['盟頻', '隊頻', '世頻', '陣頻']
-        update.message.reply_text(text = '請選擇想鎖定的頻道',
+        await update.message.reply_text(text = '請選擇想鎖定的頻道',
             reply_markup = InlineKeyboardMarkup
             (
                 [
@@ -312,121 +335,136 @@ def LockChannel(update : Update, context : CallbackContext):
                 ]
             )
         )
+    else: 
+        await update.message.reply_text(text="This is a private bot")
 
-def UnlockChannel(update : Update, context : CallbackContext):
+async def UnlockChannel(update : Update, context : CallbackContext):
     printRecvMsg(update)
     global SayChannel
     SayChannel = None
-    update.message.reply_text(text = '已解鎖綁定頻道')
+    await update.message.reply_text(text = '已解鎖綁定頻道')
 
-def BindPlayer(update : Update, context : CallbackContext):
+async def BindPlayer(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID):
+    if update.message.from_user.id == myID:
         clients = myServer.clients
         markupList = []
         for data in clients:
             markupList.append([InlineKeyboardButton(data.playerName, callback_data = 'Player' + data.playerName)])
-        update.message.reply_text(text = '請選擇想綁定的玩家', reply_markup = InlineKeyboardMarkup(markupList))
+        await update.message.reply_text(text = '請選擇想綁定的玩家', reply_markup = InlineKeyboardMarkup(markupList))
+    else: 
+        await update.message.reply_text(text="This is a private bot")
 
-def ShowEmoji(update : Update, context : CallbackContext):
+async def ShowEmoji(update : Update, context : CallbackContext):
     printRecvMsg(update)
-    if(update.message.from_user.id == myID):
+    if (update.message.from_user.id == myID):
         myText = ''
         emojiDic = EmojiDic()
         for key, value in emojiDic.items():
             myText = myText + '{}  =   {}\n'.format(key, value)
-        update.message.reply_text(text = myText)
+        await update.message.reply_text(text = myText)
+    else: 
+        await update.message.reply_text(text="This is a private bot")
 
-def Answer(update : Update, context : CallbackContext):
+async def Answer(update : Update, context : CallbackContext):
     recvData = update.callback_query.data
-    if(recvData.startswith('Close')):
+    if recvData.startswith('Close'):
         closedChannel = recvData.replace('Close', '')
         channel[closedChannel] = not channel.get(closedChannel)
         reply = ""
         for key, value in channel.items():
-            if(value): value = "開"
-            else: value = "關"
+            if value: 
+                value = "開"
+            else: 
+                value = "關"
             reply += "{}: {}\n".format(key, value)
-        update.callback_query.edit_message_text(text = reply)
+        await update.callback_query.edit_message_text(text = reply)
         saveChannel()
-    elif(recvData.startswith('Say')):
+    elif recvData.startswith('Say'):
         global SayChannel
-        if(recvData == "Say密頻"):
-            update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
+        if recvData == "Say密頻":
+            await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
             SayChannel = "ID密頻"
         else:
-            update.callback_query.edit_message_text(text = '請輸入訊息')
+            await update.callback_query.edit_message_text(text = '請輸入訊息')
             SayChannel = recvData.replace('Say', '')
-    elif(recvData.startswith('Lock')):
-        if(recvData == "Lock密頻"):
-            update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
+    elif recvData.startswith('Lock'):
+        if recvData == "Lock密頻":
+            await update.callback_query.edit_message_text(text = '請輸入玩家ID或名稱')
             SayChannel = "LockID密頻"
         else:
             SayChannel = recvData
-            update.callback_query.edit_message_text(text = '已鎖定' + recvData.replace('Lock', ''))
-    elif(recvData.startswith('Player')):
+            await update.callback_query.edit_message_text(text = '已鎖定' + recvData.replace('Lock', ''))
+    elif recvData.startswith('Player'):
         playerName = recvData.replace('Player', '')
         myServer.BindPlayer(playerName)
-        update.callback_query.edit_message_text(text = '已綁定帳號: ' + playerName)
+        await update.callback_query.edit_message_text(text = '已綁定帳號: ' + playerName)
     else:
-        update.callback_query.edit_message_text(text = recvData)
+        await update.callback_query.edit_message_text(text = recvData)
 
-def MsgHandle(update : Update, context : CallbackContext):
-    if (update.message.text.startswith('/')): return
+async def MsgHandle(update : Update, context : CallbackContext):
+    if update.message.text.startswith('/'):
+        return
     printRecvMsg(update)
+    if update.message.from_user.id != myID: 
+        await update.message.reply_text(text="This is a private bot")
+        return
+
     global SayChannel
-    if(SayChannel != None):
+    if SayChannel != None:
         splitedMsg = SayChannel.split('|||')
 
-        if(SayChannel == "ID密頻"):
+        if SayChannel == "ID密頻":
             SayChannel = "密頻|||" + update.message.text
-            update.message.reply_text(text = '請輸入訊息')
+            await update.message.reply_text(text = '請輸入訊息')
 
-        elif(SayChannel == "LockID密頻"):
+        elif SayChannel == "LockID密頻":
             SayChannel = "Lock密頻|||" + update.message.text
-            if(not update.message.text.isdigit()):
+            if not update.message.text.isdigit():
                 foundID = False
                 for key, value in playerIDList.items():
-                    if(value == update.message.text):
+                    if value == update.message.text:
                         foundID = True
                         break
-                if(not foundID):
+                if not foundID:
                     SayChannel = None
-                    update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
+                    await update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
                 else:
-                    update.message.reply_text(text = '已鎖定密頻, 玩家名稱: ' + update.message.text)
+                    await update.message.reply_text(text = '已鎖定密頻, 玩家名稱: ' + update.message.text)
             else:
-                update.message.reply_text(text = '已鎖定密頻, 玩家ID: ' + update.message.text)
+                await update.message.reply_text(text = '已鎖定密頻, 玩家ID: ' + update.message.text)
             
         else:
-            if(splitedMsg[0].startswith('Lock')):
+            if splitedMsg[0].startswith('Lock'):
                 splitedMsg[0] = splitedMsg[0].replace('Lock', '')
             else:
                 SayChannel = None
             splitedMsg.append(update.message.text)
-            if(splitedMsg[0] == '密頻'):
-                if(splitedMsg[1].isdigit()):
-                    myServer.Send("SWPE|||密頻|||{}|||{}".format(splitedMsg[1], splitedMsg[2]))
+            if splitedMsg[0] == '密頻':
+                if splitedMsg[1].isdigit():
+                    await myServer.Send("SWPE|||密頻|||{}|||{}".format(splitedMsg[1], splitedMsg[2]))
                 else:
                     foundID = False
                     for key, value in playerIDList.items():
-                        if(value == splitedMsg[1]):
+                        if value == splitedMsg[1]:
                             foundID = True
-                            myServer.Send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[2]))
+                            await myServer.Send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[2]))
                             break
-                    if(not foundID):
-                        update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
+                    if not foundID:
+                        await update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
             else:
-                myServer.Send("SWPE|||{}|||NULL|||{}".format(splitedMsg[0], splitedMsg[1]))
+                await myServer.Send("SWPE|||{}|||NULL|||{}".format(splitedMsg[0], splitedMsg[1]))
 
 
 def Error(update : Update, context : CallbackContext):
     printRecvMsg(update)
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-def sendMsg(userID : int, msg : str):
-    try: updater.bot.send_message(chat_id = userID, text = msg)
-    except Exception as e: print("Bot Send Message Failed" + str(e))
+async def sendMsg(userID : int, msg : str):
+    try: 
+        await application.bot.send_message(chat_id = userID, text = msg)
+    except Exception as e: 
+        print("Bot Send Message Failed" + str(e))
     
 def EmojiDic():
     emojiDic : dict[str, str] = dict()
@@ -465,20 +503,24 @@ def EmojiDic():
 def main():
     # Start Read Token and Admin ID
     try:
-        file = codecs.open(path + '/BotInfo.txt', mode = 'r', encoding = 'utf-8-sig')
-        lines = file.read().replace('\r\n', '\n').split('\n')
+        file = open(path + "/BotInfo.txt", mode = "r", encoding = "utf8")
+        lines = file.read().replace("\ufeff", "").replace("\r\n", "\n").split("\n")
         Token = lines[0]
         adminID = lines[1]
-        global myID, updater
-        myID = int(adminID)
+        global myID, application
+        myID = 0
+        try:
+            myID = int(adminID)
+        except:
+            print("無法找到適合的ID, 請對bot發言,再把你的UserID貼在BotInfo.txt的第二行上。")
         file.close()
-        updater = Updater(Token, use_context = True)
+        application = Application.builder().token(Token).build()
     except Exception as e:
         try: file.close()
         except: pass
         print("Read Token and Admin ID Error: " + str(e))
-        print("無法找到適合的Token 及 ID")
-        time.sleep(1.5)
+        print("無法找到適合的Token 或 ID")
+        time.sleep(3)
         return
     # End Read Token and Admin ID
 
@@ -489,21 +531,31 @@ def main():
     myServer = MyTCPServer()
     myServer.Start()
     
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", Start))
-    dp.add_handler(CommandHandler("close", Close))
-    dp.add_handler(CommandHandler("say", Say))
-    dp.add_handler(CommandHandler("lockchannel", LockChannel))
-    dp.add_handler(CommandHandler("unlockchannel", UnlockChannel))
-    dp.add_handler(CommandHandler("bindplayer", BindPlayer))
-    dp.add_handler(CommandHandler("showemoji", ShowEmoji))
 
-    dp.add_handler(MessageHandler(Filters.text, MsgHandle))
-    dp.add_handler(CallbackQueryHandler(Answer))
+    application.add_handler(CommandHandler("start", Start))
+    application.add_handler(CommandHandler("close", Close))
+    application.add_handler(CommandHandler("say", Say))
+    application.add_handler(CommandHandler("lockchannel", LockChannel))
+    application.add_handler(CommandHandler("unlockchannel", UnlockChannel))
+    application.add_handler(CommandHandler("bindplayer", BindPlayer))
+    application.add_handler(CommandHandler("showemoji", ShowEmoji))
 
-    dp.add_error_handler(Error)
-    updater.start_polling()
-    updater.idle()
+    application.add_handler(CallbackQueryHandler(Answer))
+
+    application.add_handler(MessageHandler(filters.TEXT, MsgHandle))
+
+    """
+    # not used
+    conversation_handler = (ConversationHandler(
+        entry_points=[CommandHandler("lockchannel", LockChannel)], 
+        states={range(1): [CallbackQueryHandler(Answer)]}, 
+        fallbacks=[CommandHandler("lockchannel", LockChannel)]
+        ))
+    application.add_handler(conversation_handler)
+    """
+    application.add_error_handler(Error)
+    application.run_polling()
+    application.idle()
     myServer.Close()
 
 if __name__ == '__main__':
