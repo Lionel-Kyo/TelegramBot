@@ -1,15 +1,12 @@
 import asyncio
-import codecs
 import logging
 import os
-import socket
 import time
-from threading import Thread
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, MessageHandler,
-                          Updater, filters)
+                          filters)
 
 from EmojiDict import get_emoji_dict
 from MyTCPServer import MyTCPServer
@@ -20,6 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 my_server: MyTCPServer = None
+api_token: str = ""
 path: str = os.getcwd()
 application : Application
 say_channel = None
@@ -45,7 +43,8 @@ def read_channel():
     try:
         file = open(path + '/Channel.ini', mode = 'r', encoding = 'utf-8-sig')
         line = file.readline()
-        if (line == None or line == ""): return
+        if line is None or line == "": 
+            return
 
         splited = line.split('|')
         count = 0
@@ -79,27 +78,27 @@ def print_recv_msg(update : Update):
         return
     update.message.from_user
     user = update.message.from_user
-    if user == None:
+    if user is None:
         return
     firstName = ""
     lastName = ""
-    if user.first_name != None:
+    if user.first_name is not None:
         firstName = user.first_name
-    if user.last_name != None:
+    if user.last_name is not None:
         lastName = user.last_name
     fullName = firstName + lastName
     print('Message received from {} / {}(UserID: {} ChatID: {}): {}'.format(fullName, user.username, user.id, update.message.chat_id, update.message.text))
 
 async def start_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
-    if (update.message.from_user.id == my_server.botId): 
+    if update.message.from_user.id == my_server.botId: 
         read_id()
         print("Reloaded playerIDList")
     await update.message.reply_text('Hi there is Saki Saki BOT!!!')
 
 async def say_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
-    if (update.message.from_user.id == my_server.botId):
+    if update.message.from_user.id == my_server.botId:
 
         splitedMsg = update.message.text.split(' ')
         if len(splitedMsg) != 3 and len(splitedMsg) != 4:
@@ -136,7 +135,7 @@ async def say_handle(update : Update, context : CallbackContext):
 
 async def close_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
-    if (update.message.from_user.id == my_server.botId):
+    if update.message.from_user.id == my_server.botId:
         channels1 = ['系統公告', '密頻', '全頻', '輕頻', '團頻']
         channels2 = ['盟頻', '隊頻', '世頻', '陣頻']
         await update.message.reply_text(text = '請選擇想開關的頻道',
@@ -153,7 +152,7 @@ async def close_handle(update : Update, context : CallbackContext):
 
 async def lock_channel_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
-    if (update.message.from_user.id == my_server.botId):
+    if update.message.from_user.id == my_server.botId:
         channels1 = ['密頻', '全頻', '輕頻', '團頻']
         channels2 = ['盟頻', '隊頻', '世頻', '陣頻']
         await update.message.reply_text(text = '請選擇想鎖定的頻道',
@@ -187,7 +186,7 @@ async def bind_player_handle(update : Update, context : CallbackContext):
 
 async def show_emoji_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
-    if (update.message.from_user.id == my_server.botId):
+    if update.message.from_user.id == my_server.botId:
         myText = ''
         emojiDic = get_emoji_dict()
         for key, value in emojiDic.items():
@@ -254,7 +253,7 @@ async def msg_handle(update : Update, context : CallbackContext):
         return
 
     global say_channel
-    if say_channel != None:
+    if say_channel is not None:
         splitedMsg = say_channel.split('|||')
 
         if say_channel == "ID密頻":
@@ -305,29 +304,37 @@ def error_handle(update : Update, context : CallbackContext):
 
 async def send_msg(userID : int, msg : str):
     try: 
-        await application.bot.send_message(chat_id = userID, text = msg)
+        await Bot(token=api_token).send_message(chat_id=userID, text=msg)
+        #await application.bot.send_message(chat_id=userID, text=msg)
     except Exception as e: 
         print("Bot Send Message Failed: " + str(e))
 
 def main():
     global my_server
     my_server = MyTCPServer()
-    my_server.send_msg = send_msg
+    my_server.send_msg = lambda *args, **kwargs: asyncio.run(send_msg(*args, **kwargs))
     my_server.path = path
     # Start Read Token and Admin ID
     try:
+        global application, api_token
         file = open(path + "/BotInfo.txt", mode = "r", encoding = "utf8")
         lines = file.read().replace("\ufeff", "").replace("\r\n", "\n").split("\n")
-        Token = lines[0]
+        api_token = lines[0]
         adminID = lines[1]
-        global application
         my_server.botId = 0
         try:
            my_server.botId = int(adminID)
         except:
             print("無法找到適合的ID, 請對bot發言,再把你的UserID貼在BotInfo.txt的第二行上。")
         file.close()
-        application = Application.builder().token(Token).build()
+        builder = Application.builder()
+        builder.token(api_token)
+        builder.connection_pool_size(50000)
+        builder.get_updates_connection_pool_size(50000)
+        builder.pool_timeout(100)
+        builder.connect_timeout(100)
+        builder.get_updates_pool_timeout(100)
+        application = builder.build()
     except Exception as e:
         try: file.close()
         except: pass
@@ -370,7 +377,6 @@ def main():
     """
     application.add_error_handler(error_handle)
     application.run_polling()
-    application.idle()
     my_server.close()
 
 if __name__ == '__main__':

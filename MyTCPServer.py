@@ -1,6 +1,7 @@
 import time
 import asyncio
 import socket
+import threading
 from threading import Thread
 
 from ClientData import ClientData
@@ -58,16 +59,17 @@ class MyTCPServer:
                 except: pass
                 self.clients.remove(clientData)
                 print(playerName + ' closed connection.')
-                asyncio.run(self.send_msg(self.botId, playerName + " 已離開伺服器"))
+                self.send_msg(self.botId, playerName + " 已離開伺服器")
                 if playerID == self.accept_world_channel:
                     self.accept_world_channel = None
                 return
-            if (self.accept_world_channel == None):
+            if self.accept_world_channel is None:
                 self.accept_world_channel = playerName
             decodedMsg : str = recvMsg.decode(encoding = 'UTF-8')
             msgs = decodedMsg.split('\r\n')
             for msg in msgs:
-                if (msg == None or msg == ''): continue
+                if msg is None or msg == "":
+                    continue
                 splitedMsg = msg.split('|||')
                 #print('Server Received Message: ' + msg)
 
@@ -76,7 +78,7 @@ class MyTCPServer:
                         try: splitedMsg[3] = self.player_ids.get((int)(splitedMsg[2]))
                         except: pass
                     else:
-                        if (splitedMsg[1] != "密頻"): 
+                        if splitedMsg[1] != "密頻": 
                             self.check_and_save_id((int)(splitedMsg[2]), splitedMsg[3])
 
                     splitedMsg.pop(0)
@@ -85,9 +87,9 @@ class MyTCPServer:
                         splitedMsg.pop(1)
                         splitedMsg.pop(1)
                     elif splitedMsg[0] == "密頻":
-                        if (splitedMsg[1] == (str)(clientData.playerID)):
+                        if splitedMsg[1] == str(clientData.playerID):
                             splitedMsg[2] = "我對 " + splitedMsg[2] + " 說: "
-                        elif (splitedMsg[1] == '0'):
+                        elif splitedMsg[1] == '0':
                             splitedMsg[1] = ""
                             splitedMsg[2] = "發送失敗信息: "
                         else:
@@ -95,7 +97,7 @@ class MyTCPServer:
                     
                     reply = ""
                     for sssss in splitedMsg:
-                        if (sssss == None):
+                        if sssss is None:
                             continue
                         else:
                             for key, value in self.emoji_dict.items():
@@ -105,9 +107,9 @@ class MyTCPServer:
                     if self.channel.get(splitedMsg[0]):
                         if splitedMsg[0] == "世頻" or splitedMsg[0] == "陣頻" or splitedMsg[0] == "系統公告":
                             if self.accept_world_channel == playerName:
-                                asyncio.run(self.send_msg(self.botId, playerName + " ~ " + reply))
+                                self.send_msg(self.botId, playerName + " ~ " + reply)
                         else:
-                            asyncio.run(self.send_msg(self.botId, playerName + " ~ " + reply))
+                            self.send_msg(self.botId, playerName + " ~ " + reply)
 
                 elif splitedMsg[0] == "SWPENAME":
                     try:
@@ -116,14 +118,15 @@ class MyTCPServer:
                         clientData.playerName = playerName
                         clientData.playerID = playerID
                         print('Connected player: {} ({})'.format(playerName, playerID))
-                        asyncio.run(self.send_msg(self.botId, "{} ({}) 已連接至伺服器".format(playerName, playerID)))
+                        self.send_msg(self.botId, "{} ({}) 已連接至伺服器".format(playerName, playerID))
                     except:
                         print('Failed to Initialize Name')
 
     def bind_player(self, playerName : str):
-        if (playerName == None): return
+        if playerName is None:
+            return
         for data in self.clients: 
-            if (data.playerName == playerName):
+            if data.playerName == playerName:
                     self.binded_player = data.playerName
                     break
 
@@ -131,7 +134,7 @@ class MyTCPServer:
         # Send Message Format: SWPE|||Channel|||ID|||Message
         foundTarget = False
         for data in self.clients:
-            if (data.playerName == self.binded_player):
+            if data.playerName == self.binded_player:
                 try:
                     foundTarget = True
                     data.client.send(msg.encode(encoding = 'UTF-8'))
@@ -155,9 +158,9 @@ class MyTCPServer:
         self.server = None
 
     def check_and_save_id(self, ID: int, name: str):
-        if name == 'N/A' or name == None or ID == None or ID < 10000: 
+        if name == 'N/A' or name is None or ID is None or ID < 10000: 
             return
-        if (ID in self.player_ids):
+        if ID in self.player_ids:
             return
         else:
             self.player_ids[ID] = name
