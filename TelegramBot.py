@@ -188,8 +188,8 @@ async def show_emoji_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
     if update.message.from_user.id == my_server.botId:
         myText = ''
-        emojiDic = get_emoji_dict()
-        for key, value in emojiDic.items():
+        emoji_dict = get_emoji_dict()
+        for key, value in emoji_dict.items():
             myText = myText + '{}  =   {}\n'.format(key, value)
         await update.message.reply_text(text = myText)
     else: 
@@ -346,8 +346,19 @@ def main():
 
     read_id()
     read_channel()
-
-    my_server.start()
+    
+    while not my_server.started:
+        try:
+            my_server.start()
+        except:
+            # Restarting the Host Network Service on Windows to solve
+            # PermissionError: [WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+            os.system("net stop hns")
+            os.system("net start hns")
+            for i in range(11):
+                remain_secs = 10 - i
+                print(f"Start failed, restart in {remain_secs} second" + "s" if remain_secs > 1 else "")
+                time.sleep(1)
     
 
     application.add_handler(CommandHandler("start", start_handle))

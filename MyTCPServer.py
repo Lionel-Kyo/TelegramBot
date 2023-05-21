@@ -24,6 +24,7 @@ class MyTCPServer:
         self.player_ids = {}
         self.botId = 0
         self.path = ""
+        self.__started = False
     
     def start(self):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -36,10 +37,12 @@ class MyTCPServer:
         self.accept_thread.start()
         
     def accept_client(self):
+        self.__started = True
         while True:
             try:
                 client, address = self.server.accept()
             except:
+                self.__started = False
                 return
             # print('Have a connection from: ' + (str)(address))
             clientData  = ClientData(client, address)
@@ -158,7 +161,7 @@ class MyTCPServer:
         self.server = None
 
     def check_and_save_id(self, ID: int, name: str):
-        if name == 'N/A' or name is None or ID is None or ID < 10000: 
+        if name is None or name == 'N/A' or ID is None or ID < 10000: 
             return
         if ID in self.player_ids:
             return
@@ -178,3 +181,7 @@ class MyTCPServer:
                     time.sleep(0.01)
                     if tryTime > 20:
                         break
+    
+    @property
+    def started(self):
+        return self.__started
