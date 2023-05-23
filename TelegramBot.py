@@ -49,7 +49,7 @@ def read_channel():
         splited = line.split('|')
         count = 0
         for key, value in my_server.channel.items():
-            if len(splited) < count and splited[count] == '0': 
+            if count < len(splited) and splited[count] == '0': 
                 my_server.channel[key] = False
             count += 1
         file.close()
@@ -68,7 +68,7 @@ def save_channel():
         else: 
             writeData = '0'
         count += 1
-        if count != len(my_server.channel): 
+        if count < len(my_server.channel): 
             writeData += '|'
         file.write(writeData)
     file.close()
