@@ -20,7 +20,7 @@ class MyTCPServer:
 
         self.emoji_dict = get_emoji_dict()
         self.send_msg = None
-        self.channel = {'系統公告': True, '密頻': True, '全頻': True, '輕頻': True, '團頻': True, '盟頻': True, '隊頻': True, '世頻': True, '陣頻': True}
+        self.channel = { "系統公告": True, "密頻": True, "全頻": True, "輕頻": True, "團頻": True, "盟頻": True, "隊頻": True, "世頻": True, "陣頻": True, "S-WPE": True}
         self.player_ids = {}
         self.botId = 0
         self.path = ""
@@ -32,7 +32,7 @@ class MyTCPServer:
         self.server.bind((self.ip, self.port))
         self.server.listen(10)
         # print('Server start at: {}:{}'.format(self.IP, self.port))
-        print("Waiting for connection from SWPE...")
+        print("Waiting for connection from S-WPE...")
         self.accept_thread = Thread(target = self.accept_client)
         self.accept_thread.start()
         
