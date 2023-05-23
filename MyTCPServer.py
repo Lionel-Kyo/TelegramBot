@@ -107,7 +107,9 @@ class MyTCPServer:
                                 sssss = sssss.replace(key, value)
                             reply += sssss + " "
 
-                    if self.channel.get(splitedMsg[0]):
+                    is_channel_open = self.channel.get(splitedMsg[0], None)
+
+                    if is_channel_open is None or is_channel_open:
                         if splitedMsg[0] == "世頻" or splitedMsg[0] == "陣頻" or splitedMsg[0] == "系統公告":
                             if self.accept_world_channel == playerName:
                                 self.send_msg(self.botId, playerName + " ~ " + reply)
