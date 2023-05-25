@@ -119,18 +119,18 @@ async def say_handle(update : Update, context : CallbackContext):
             splitedMsg[1] = splitedMsg[1] + '頻'
         if splitedMsg[1] == '密頻':
             if splitedMsg[2].isdigit():
-                await my_server.send("SWPE|||密頻|||{}|||{}".format(splitedMsg[2], splitedMsg[3]))
+                my_server.send("SWPE|||密頻|||{}|||{}".format(splitedMsg[2], splitedMsg[3]))
             else:
                 foundID = False
                 for key, value in my_server.player_ids.items():
                     if value == splitedMsg[2]:
                         foundID = True
-                        await my_server.send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[3]))
+                        my_server.send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[3]))
                         break
                 if not foundID:
                     await update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
         else:
-            await my_server.send("SWPE|||{}|||NULL|||{}".format(splitedMsg[1], splitedMsg[2]))
+            my_server.send("SWPE|||{}|||NULL|||{}".format(splitedMsg[1], splitedMsg[2]))
     else: 
         await update.message.reply_text(text="This is a private bot")
 
@@ -285,21 +285,21 @@ async def msg_handle(update : Update, context : CallbackContext):
             splitedMsg.append(update.message.text)
             if splitedMsg[0] == '密頻':
                 if splitedMsg[1].isdigit():
-                    await my_server.send("SWPE|||密頻|||{}|||{}".format(splitedMsg[1], splitedMsg[2]))
+                    my_server.send("SWPE|||密頻|||{}|||{}".format(splitedMsg[1], splitedMsg[2]))
                 else:
                     foundID = False
                     for key, value in my_server.player_ids.items():
                         if value == splitedMsg[1]:
                             foundID = True
-                            await my_server.send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[2]))
+                            my_server.send("SWPE|||密頻|||{}|||{}".format(key, splitedMsg[2]))
                             break
                     if not foundID:
                         await update.message.reply_text("找不到該名玩家，請以玩家編號進行密語")
             else:
-                await my_server.send("SWPE|||{}|||NULL|||{}".format(splitedMsg[0], splitedMsg[1]))
+                my_server.send("SWPE|||{}|||NULL|||{}".format(splitedMsg[0], splitedMsg[1]))
 
 
-def error_handle(update : Update, context : CallbackContext):
+async def error_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 

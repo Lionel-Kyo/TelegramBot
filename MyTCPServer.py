@@ -20,7 +20,7 @@ class MyTCPServer:
 
         self.emoji_dict = get_emoji_dict()
         self.send_msg = None
-        self.channel = { "系統公告": True, "密頻": True, "全頻": True, "輕頻": True, "團頻": True, "盟頻": True, "隊頻": True, "世頻": True, "陣頻": True, "S-WPE": True}
+        self.channel = { "系統公告": True, "密頻": True, "全頻": True, "輕頻": True, "團頻": True, "盟頻": True, "隊頻": True, "世頻": True, "陣頻": True, "登入資訊": True, "重連資訊": True}
         self.player_ids = {}
         self.botId = 0
         self.path = ""
@@ -86,7 +86,7 @@ class MyTCPServer:
 
                     splitedMsg.pop(0)
 
-                    if splitedMsg[0] == "系統公告":
+                    if splitedMsg[0] == "系統公告" or splitedMsg[0] == "登入資訊" or splitedMsg[0] == "斷線資訊":
                         splitedMsg.pop(1)
                         splitedMsg.pop(1)
                     elif splitedMsg[0] == "密頻":
@@ -135,7 +135,7 @@ class MyTCPServer:
                     self.binded_player = data.playerName
                     break
 
-    async def send(self, msg : str):
+    def send(self, msg : str):
         # Send Message Format: SWPE|||Channel|||ID|||Message
         foundTarget = False
         for data in self.clients:
@@ -145,11 +145,11 @@ class MyTCPServer:
                     data.client.send(msg.encode(encoding = 'UTF-8'))
                 except:
                     print("Error on Send")
-                    await self.send_msg(self.botId, '發送對話失敗')
+                    self.send_msg(self.botId, '發送對話失敗')
                 break
         if not foundTarget:
             print('No Player are binded')
-            await self.send_msg(self.botId, '沒有綁定帳號')
+            self.send_msg(self.botId, '沒有綁定帳號')
 
     def close(self):
         for client in self.clients:
