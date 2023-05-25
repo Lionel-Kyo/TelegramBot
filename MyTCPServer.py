@@ -86,7 +86,7 @@ class MyTCPServer:
 
                     splitedMsg.pop(0)
 
-                    if splitedMsg[0] == "系統公告" or splitedMsg[0] == "登入資訊" or splitedMsg[0] == "斷線資訊":
+                    if splitedMsg[0] == "系統公告" or splitedMsg[0] == "登入資訊" or splitedMsg[0] == "重連資訊":
                         splitedMsg.pop(1)
                         splitedMsg.pop(1)
                     elif splitedMsg[0] == "密頻":

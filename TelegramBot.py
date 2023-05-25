@@ -137,15 +137,17 @@ async def say_handle(update : Update, context : CallbackContext):
 async def close_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
     if update.message.from_user.id == my_server.botId:
-        channels1 = ['系統公告', '密頻', '全頻', '輕頻', '團頻']
-        channels2 = ['盟頻', '隊頻', '世頻', '陣頻']
+        button_lines = []
+        channel_name_count = 0
+        for channel_name in my_server.channel.keys():
+            if channel_name_count % 4 == 0:
+                button_lines.append([])
+            button_lines[int(channel_name_count / 4)].append(InlineKeyboardButton(channel_name, callback_data = "Close" + channel_name))
+            channel_name_count += 1
         await update.message.reply_text(text = '請選擇想開關的頻道',
             reply_markup = InlineKeyboardMarkup
             (
-                [
-                    [InlineKeyboardButton(name, callback_data = "Close" + name) for name in channels1],
-                    [InlineKeyboardButton(name, callback_data = "Close" + name) for name in channels2]
-                ]
+                button_lines
             )
         )
     else: 
@@ -154,6 +156,7 @@ async def close_handle(update : Update, context : CallbackContext):
 async def lock_channel_handle(update : Update, context : CallbackContext):
     print_recv_msg(update)
     if update.message.from_user.id == my_server.botId:
+        # channel that won't be added
         channels1 = ['密頻', '全頻', '輕頻', '團頻']
         channels2 = ['盟頻', '隊頻', '世頻', '陣頻']
         await update.message.reply_text(text = '請選擇想鎖定的頻道',
